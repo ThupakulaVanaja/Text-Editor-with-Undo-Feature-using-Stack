@@ -1,0 +1,105 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define MAX_TEXT_SIZE 1000
+
+// Stack structure for storing text states
+typedef struct Stack {
+    char *text[MAX_TEXT_SIZE];
+    int top;
+} Stack;
+
+// Function to initialize the stack
+void initStack(Stack *stack) {
+    stack->top = -1;
+}
+
+// Function to push text onto the stack
+void push(Stack *stack, const char *text) {
+    if (stack->top < MAX_TEXT_SIZE - 1) {
+        stack->top++;
+        stack->text[stack->top] = strdup(text); // Duplicate text to avoid pointer issues
+    }
+}
+
+// Function to pop text from the stack
+char *pop(Stack *stack) {
+    if (stack->top >= 0) {
+        return stack->text[stack->top--];
+    }
+    return NULL;
+}
+
+// Function to perform insertion
+void insertText(char *text, const char *insert, Stack *undoStack, Stack *redoStack) {
+    push(undoStack, text);  // Save the current state to the undo stack
+    strcpy(text, text);  // Insert new text into the editor
+    strcat(text, insert);
+    printf("Text after insertion: %s\n", text);
+    // Clear the redo stack as new action was performed
+    redoStack->top = -1;
+}
+
+// Function to perform deletion
+void deleteText(char *text, int n, Stack *undoStack, Stack *redoStack) {
+    int len = strlen(text);
+    if (n <= len) {
+        char *deleted = (char *)malloc(len - n + 1);
+        strncpy(deleted, text, len - n);
+        deleted[len - n] = '\0';
+
+        push(undoStack, text);  // Save the current state to the undo stack
+        strcpy(text, deleted);  // Update the text
+        printf("Text after deletion: %s\n", text);
+
+        free(deleted);
+    } else {
+        printf("Invalid number of characters to delete.\n");
+    }
+
+    // Clear the redo stack as new action was performed
+    redoStack->top = -1;
+}
+
+// Function to undo an operation
+void undo(char *text, Stack *undoStack, Stack *redoStack) {
+    char *prevText = pop(undoStack);  // Get the last state from undo stack
+    if (prevText != NULL) {
+        push(redoStack, text);  // Save the current state to the redo stack
+        strcpy(text, prevText);  // Revert to previous state
+        printf("Text after undo: %s\n", text);
+        free(prevText);  // Free the memory used for previous state
+    } else {
+        printf("Nothing to undo.\n");
+    }
+}
+
+// Function to redo an operation
+void redo(char *text, Stack *undoStack, Stack *redoStack) {
+    char *nextText = pop(redoStack);  // Get the last state from redo stack
+    if (nextText != NULL) {
+        push(undoStack, text);  // Save the current state to the undo stack
+        strcpy(text, nextText);  // Reapply the previously undone operation
+        printf("Text after redo: %s\n", text);
+        free(nextText);  // Free the memory used for next state
+    } else {
+        printf("Nothing to redo.\n");
+    }
+}
+
+int main() {
+    Stack undoStack, redoStack;
+    char text[MAX_TEXT_SIZE] = "";  // Initialize an empty text
+    initStack(&undoStack);
+    initStack(&redoStack);
+
+    // Example operations
+    insertText(text, "Hello, ", &undoStack, &redoStack);  // Insert "Hello, "
+    insertText(text, "world!", &undoStack, &redoStack);  // Insert "world!"
+    deleteText(text, 7, &undoStack, &redoStack);  // Delete last 7 characters
+    undo(text, &undoStack, &redoStack);  // Undo last operation (delete)
+    redo(text, &undoStack, &redoStack);  // Redo last undone operation (delete)
+    
+    return 0;
+}
